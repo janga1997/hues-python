@@ -4,18 +4,18 @@
 import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
+import os
 import pandasql as pdsql
 
 pysql = lambda q: pdsql.sqldf(q, globals())
 
 
-cd '/home/janga/'
+working_directory = "C:\\Users\\boa\\Documents\\Repositories_Github\\energy-hub-model-generator-aimms\\aimms_model\\energy_hub\\results"
+os.chdir(working_directory)
 
-
-import os
-
-directory = '.'
+directory = 'Generic_energy_hub_experiment_with_sizing'
 experiments = next(os.walk(directory))[1]
+experiments = [os.path.join(directory, var) for var in experiments]
 
 
 results_capacity_heat = pd.DataFrame()
@@ -30,18 +30,18 @@ results_emissions = pd.DataFrame()
 
 
 for experiment in experiments:
-    
+
     ## Extract Production Capacity Data
 
-    filename = 'experiment' + '/results_capacities.xlsx'
+    filename = experiment + '\\results_capacities.xlsx'
     data = pd.read_excel(filename, 'Capacity')
-    
+
     data.set_index('X1')
     data.drop('head0', axis=1)
     data_elec = data.Elec.to_frame(name = 'value')
     data_elec['technology'] = data.index.values
     data_elec['experiment'] = [experiment] * len(data)
-    
+
     results_capacity_electricity = results_capacity_electricity.append(data_elec)
 
     data_heat = data.Heat.to_frame(name = 'value')
@@ -57,6 +57,7 @@ for experiment in experiments:
     if experiment == 'NetMetering':
     	data['X1'] = data['X1'].str.replace("Battery","Elec")
     	data['X1'] = data['X1'].str.replace("Hot_water_tank","Heat")
+    	data = data[ data['X1'].str.contains('Net_meter') ]
     	## Have to add the grep function
 
     data['experiment'] = [experiment] * len(data)
@@ -80,7 +81,7 @@ for experiment in experiments:
     for i in xrange(1,wks_in_yr + 1):
     	j = [i] * hrs_in_wk
     	t = t.append(j)
-        
+
     t = t.append([53] * (8760 - 8736))
     data['weeks'] = t
 
@@ -96,7 +97,7 @@ for experiment in experiments:
   	data_total_summed.columns = ["technology","value","experiment"]
 
   	results_total_production_elec <- results_total_production_elec.append(data_total_summed)
-  
+
   	#Heat Production
   	data = pd.read_excel(filename,"Output_energy_heat")
   	data_stor = pd.read_excel(filename,"Storage_output_energy")
@@ -122,7 +123,7 @@ for experiment in experiments:
 	data1 = pd.read_excel(filename,"Total_cost_per_technology", header = None)
   	data2 = pd.read_excel(filename,"Total_cost_grid", header = None)
   	data3 = pd.read_excel(filename,"Total_cost_per_storage", header = None)
-  	data4 = pd.read_excel(filename,"Income_via_exports", header = None)  	
+  	data4 = pd.read_excel(filename,"Income_via_exports", header = None)
 
   	data2.iloc[0,0] = data2.iloc[0,0] - data4.iloc[0,0]
 
@@ -151,4 +152,3 @@ for experiment in experiments:
   	emissions = pd.concat([data, newcol], axis = 1)
   	emissions.columns = ["technology", "value", "experiment"]
   	results_emissions = results_emissions.append(emissions)
-
