@@ -1,11 +1,9 @@
-
-# coding: utf-8
-
 import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
 import os
 import pandasql as pdsql
+from ggplot import *
 
 pysql = lambda q: pdsql.sqldf(q, globals())
 
@@ -37,7 +35,7 @@ for experiment in experiments:
     data = pd.read_excel(filename, 'Capacity')
 
     data.set_index('X1')
-    data.drop('head0', axis=1)
+    data.drop('X1', axis=1)
     data_elec = data.Elec.to_frame(name = 'value')
     data_elec['technology'] = data.index.values
     data_elec['experiment'] = [experiment] * len(data)
@@ -61,9 +59,9 @@ for experiment in experiments:
     	## Have to add the grep function
 
     data['experiment'] = [experiment] * len(data)
-
+    data.columns = ["technology","value","experiment"]
     results_storage_capacity = results_storage_capacity.append(data)
-
+	
     ## Extract Production Data ##
 
     #electricity production
@@ -74,7 +72,7 @@ for experiment in experiments:
     data['Storage'] = data_stor
 
     hrs_in_wk = 7 * 24
-  	wks_in_yr = np.round((8760 / (24 * 7)))
+    wks_in_yr = np.round((8760 / (24 * 7)))
 
     t = pd.DataFrame()
 
@@ -82,45 +80,45 @@ for experiment in experiments:
     	j = [i] * hrs_in_wk
     	t = t.append(j)
 
-    t = t.append([53] * (8760 - 8736))
-    data['weeks'] = t
+	t = t.append([53] * (8760 - 8736))
+	data['weeks'] = t
 
-    data_melted = pd.melt(data, id_vars=['weeks'], value_vars=['X1'])
-    data_summed = pysql('select weeks, variable, sum(value) as value from data_melted group by weeks,variable order by weeks')
-    data_summed['experiment'] = [experiment] * len(data_summed)
-    data_summed.columns = ["week","technology","value","experiment"]
+	data_melted = pd.melt(data, id_vars=['weeks'], value_vars=['X1'])
+	data_summed = pysql('select weeks, variable, sum(value) as value from data_melted group by weeks,variable order by weeks')
+	data_summed['experiment'] = [experiment] * len(data_summed)
+	data_summed.columns = ["week","technology","value","experiment"]
 
-    results_production_elec = results_production_elec.append(data_summed)
+	results_production_elec = results_production_elec.append(data_summed)
 
-    data_total_summed = pysql('select variable, sum(value) as value from data_melted group by variable')
-    data_total_summed = [experiment] * len(data_total_summed)
-  	data_total_summed.columns = ["technology","value","experiment"]
+	data_total_summed = pysql('select variable, sum(value) as value from data_melted group by variable')
+	data_total_summed = [experiment] * len(data_total_summed)
+	data_total_summed.columns = ["technology","value","experiment"]
 
-  	results_total_production_elec <- results_total_production_elec.append(data_total_summed)
+	results_total_production_elec <- results_total_production_elec.append(data_total_summed)
 
   	#Heat Production
   	data = pd.read_excel(filename,"Output_energy_heat")
   	data_stor = pd.read_excel(filename,"Storage_output_energy")
 
-    data_stor = data_stor.Heat.to_frame(name = 'Storage')
-    data['Storage'] = data_stor
+  	data_stor = data_stor.Heat.to_frame(name = 'Storage')
+  	data['Storage'] = data_stor
 
-    data_melted = pd.melt(data, id_vars=['weeks'], value_vars=['X1'])
-    data_summed = pysql('select weeks, variable, sum(value) as value from data_melted group by weeks,variable order by weeks')
-    data_summed['experiment'] = [experiment] * len(data_summed)
-    data_summed.columns = ["week","technology","value","experiment"]
+  	data_melted = pd.melt(data, id_vars=['weeks'], value_vars=['X1'])
+  	data_summed = pysql('select weeks, variable, sum(value) as value from data_melted group by weeks,variable order by weeks')
+  	data_summed['experiment'] = [experiment] * len(data_summed)
+  	data_summed.columns = ["week","technology","value","experiment"]
 
-    results_production_heat = results_production_heat.append(data_summed)
+  	results_production_heat = results_production_heat.append(data_summed)
 
-    data_total_summed = pysql('select variable, sum(value) as value from data_melted group by variable')
-    data_total_summed = [experiment] * len(data_total_summed)
+  	data_total_summed = pysql('select variable, sum(value) as value from data_melted group by variable')
+  	data_total_summed = [experiment] * len(data_total_summed)
   	data_total_summed.columns = ["technology","value","experiment"]
 
   	results_total_production_heat <- results_total_production_heat.append(data_total_summed)
 
   	##### EXTRACT COST DATA #####
 
-	data1 = pd.read_excel(filename,"Total_cost_per_technology", header = None)
+  	data1 = pd.read_excel(filename,"Total_cost_per_technology", header = None)
   	data2 = pd.read_excel(filename,"Total_cost_grid", header = None)
   	data3 = pd.read_excel(filename,"Total_cost_per_storage", header = None)
   	data4 = pd.read_excel(filename,"Income_via_exports", header = None)
@@ -140,15 +138,56 @@ for experiment in experiments:
   	data5.columns = ["technology","value",	"experiment"]
   	results_total_cost = results_total_cost.append(data5)
 
-    total_income = data4.X1.to_frame(name = 'value')
-    total_income['experiment'] = [experiment] * len(data4)
+  	total_income = data4.X1.to_frame(name = 'value')
+  	total_income['experiment'] = [experiment] * len(data4)
 
   	results_total_income = results_total_income.append(total_income)
 
   	#EXTRACT THE CARBON EMISSIONS
-	data = pd.read_excel(filename,"Total_carbon_per_technology", header = None)
+  	data = pd.read_excel(filename,"Total_carbon_per_technology", header = None)
 
   	newcol = pd.DataFrame([experiment] * len(data))
   	emissions = pd.concat([data, newcol], axis = 1)
   	emissions.columns = ["technology", "value", "experiment"]
   	results_emissions = results_emissions.append(emissions)
+
+# CREATE THE PLOTS
+plot = ggplot(results_capacity_electricity, aes(x = experiment, weight = value, fill = technology)) + geom_bar() +
+labs(title="Electricity output capacity of conversion technologies",x="Experiment", y="Capacity (kW)")
+plot.save("comparison_electricity_production_capacity.png")
+
+plot = ggplot(results_capacity_heat, aes(x = experiment, weight = value, fill = technology)) + geom_bar() +
+labs(title="Heat output capacity of conversion technologies",x="Experiment", y="Capacity (kW)")
+plot.save("comparison_heat_production_capacity.png")
+
+plot = ggplot(results_storage_capacity, aes(x = experiment, weight = value, fill =technology)) + geom_bar() +
+labs(title="Capacity of storage technologies",x="Experiment", y="Capacity (kW)")
+plot.save("comparison_storage_capacity.png")
+
+plot = ggplot(results_total_cost, aes(x = experiment, weight = value, fill =technology)) + geom_bar() +
+labs(title="Total cost",x="Experiment", y="Cost (CHF)")
+plot.save("comparison_total_cost.png")
+
+plot = ggplot(results_total_income,aes(x = experiment, weight = value)) + geom_bar() +
+labs(title="Total income",x="Experiment", y="Cost (CHF)")
+plot.save("comparison_total_income.png")
+
+plot = ggplot(results_emissions,aes(x = experiment, weight = value, fill = technology)) + geom_bar() +
+labs(title="Total emissions",x="Experiment", y="Emissions (CO2-eq)")
+plot.save("comparison_total_emissions.png")
+
+plot = ggplot(results_production_elec, aes(x = week,y = value,fill = technology)) + geom_bar() +
+labs(title="Electricity supplied per technology (weekly)",x="Week", y="Energy supplied (kWh)")
+plot.save("comparison_weekly_electricity_production.png")
+
+plot = ggplot(results_production_heat, aes(x = week, y = value, fill = technology)) + geom_bar() +
+labs(title="Heat supplied per technology (weekly)",x="Week", y="Energy supplied (kWh)")
+plot.save("comparison_weekly_heat_production.png")
+
+plot = ggplot(results_total_production_elec, aes(x = experiment, y = value, fill = technology)) + geom_bar() +
+labs(title="Total electricity supplied",x="Experiment", y="Energy supplied (kWh)")
+plot.save("comparison_total_electricity_production.png")
+
+plot = ggplot(results_total_production_heat, aes(x = experiment, y = value, fill=technology)) + geom_bar() +
+labs(title="Total heat supplied",x="Experiment", y="Energy supplied (kWh)")
+plot.save("comparison_total_heat_production.png")
